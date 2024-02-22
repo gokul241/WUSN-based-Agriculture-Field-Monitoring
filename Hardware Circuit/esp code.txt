@@ -1,0 +1,81 @@
+#include <ESP8266WiFi.h>
+#include <ThingSpeak.h>
+#include <DHT.h>
+
+// Replace with your network credentials
+const char* ssid = "your_SSID";
+const char* password = "your_PASSWORD";
+
+// Replace with your ThingSpeak channel and API key
+unsigned long channelID = YOUR_CHANNEL_ID;
+const char* apiKey = "your_API_KEY";
+
+// Replace with your sensor pins
+#define SOIL_MOISTURE_PIN A0
+#define DHT_PIN D4
+
+// Replace with your sensor type
+#define DHT_TYPE DHT22
+DHT dht(DHT_PIN, DHT_TYPE);
+
+// Initialize WiFi client
+WiFiClient client;
+
+void setup() {
+  // Start serial communication
+  Serial.begin(9600);
+
+  // Connect to WiFi network
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Initialize ThingSpeak client
+  ThingSpeak.begin(client);
+
+  // Initialize DHT sensor
+  dht.begin();
+}
+
+void loop() {
+  // Read sensor values
+  int soil_moisture = analogRead(SOIL_MOISTURE_PIN);
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+
+  // Check if sensor readings are valid
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("Failed to read from DHT sensor");
+    return;
+  }
+
+  // Print sensor readings
+  Serial.print("Soil Moisture: ");
+  Serial.println(soil_moisture);
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.print(" °C, ");
+  Serial.print("Humidity: ");
+  Serial.print(humidity);
+  Serial.println(" %");
+
+  // Update ThingSpeak channel with sensor values
+  ThingSpeak.setField(1, soil_moisture);
+  ThingSpeak.setField(2, temperature);
+  ThingSpeak.setField(3, humidity);
+  int statusCode = ThingSpeak.writeFields(channelID, apiKey);
+
+  // Check if update was successful
+  if (statusCode == 200) {
+    Serial.println("Channel update successful");
+  } else {
+    Serial.println("Channel update failed");
+  }
+
+  // Wait for 30 seconds before taking new sensor readings
+  delay(30000);
+}
